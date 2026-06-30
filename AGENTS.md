@@ -14,10 +14,11 @@
 - SQLite 文件在 `server/data/licai.db`,已被 gitignore;`server/data/` 目录不入库,故每个新环境都需先跑一次 `crawl`。
 - 抓取主流程为「真实优先 + 按产品回退示例」(`run.ts`):汇总各真实适配器数据,再用示例补齐**真实未覆盖**的产品(按 `dedupeKey` 去重),保证五家银行都有内容。每轮抓取前会 `deleteRealData()` + `deleteSamples()` 全量刷新,避免下架/改版残留。
 - 真实数据源现状(五家定期存款均已真实抓取,适配器在 `adapters/`,注册于 `run.ts`):
-  - **招商** `cmb.ts`:官网 JSON 接口;**建设** `ccb.ts`:官网利率页 iframe(`#detail__`)静态表;**平安** `pingan.ts`:官网静态表(期限含全角空格,日期锚定「自…起执行」)。
-  - **网商** `mybank.ts`:`render.mybank.cn` 储蓄利率表(转置表:表头期限+利率行对齐;**无生效日期**);**微众** `webank.ts`:官网公告利率表(**生效日期较旧**,如 2016)。互联网银行实时利率在 App,公开页会滞后。
-  - 大额存单/理财仍为示例。新增/完善真实源:实现 `SourceAdapter` 并在 `run.ts` 注册,`code` 与示例一致即自动去重合并;动态渲染站点可逆向接口或引入 Playwright。
-- 打分新鲜度按 `dataDate` 计算(3 年线性衰减),数据超 2 年整体降权(`scoring.ts`),避免互联网银行公开页过时高息污染推荐榜。
+  - **招商** `cmb.ts`:官网 JSON 接口(2025-05);**建设** `ccb.ts`:`fund.ccb.com`(注意用 **HTTP**,HTTPS 子域在本环境不可达)利率页→解析「当前生效日期」对应的 `article_*.shtml` 利率页(2025-05);**平安** `pingan.ts`:官网静态表(期限含全角空格,日期锚定「自…年月日」)。
+  - **网商** `mybank.ts`:`render.mybank.cn` 储蓄利率表(转置表;**无生效日期**→可靠「中」);**微众** `webank.ts`:官网公告页**长期停留 2016**,适配器检测到 dataDate 过旧(>2 年)即丢弃→回退示例。互联网银行实时利率在 App。
+  - **理财产品(中国理财网)**:产品接口(`/lcw-fe-service/prod/search` 等)需 token + 前端加密(crypto-js),纯 axios 取不到(token 返回 5555),需 **Playwright** 执行页面 JS;故理财/大额存单暂为示例。
+  - 可靠等级按时效校准(`run.ts`):无 dataDate→「中」、>540 天→「中」、>730 天→「低」。打分新鲜度按 `dataDate`(3 年衰减)且 >2 年整体降权(`scoring.ts`)。
+  - 新增/完善真实源:实现 `SourceAdapter` 并在 `run.ts` 注册,`code` 与示例一致即自动去重合并。
 
 ### 开发模式注意
 - `npm run dev` 用 `concurrently` 同时起后端(`tsx watch`)与前端(`vite`)。后端改 `server/src` 会热重载;但**爬虫只在手动 `npm run crawl` 时运行**,不随 dev 自动刷新数据。

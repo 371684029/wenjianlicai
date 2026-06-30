@@ -44,6 +44,19 @@ async function main(): Promise<void> {
     }
   }
 
+  // 按数据时效校准可靠等级：避免把过时挂牌（如官网长期未更新）当作「高」可靠呈现
+  const now = Date.now();
+  for (const p of realProducts) {
+    if (!p.dataDate) {
+      p.reliability = '中'; // 无生效日期，时效不可校验
+      continue;
+    }
+    const ageDays = (now - new Date(p.dataDate).getTime()) / 86_400_000;
+    if (!Number.isFinite(ageDays)) p.reliability = '中';
+    else if (ageDays > 730) p.reliability = '低'; // 超 2 年视为过时
+    else if (ageDays > 540) p.reliability = '中';
+  }
+
   const realKeys = new Set(realProducts.map((p) => dedupeKey(p)));
   // 示例数据中，仅保留「真实数据未覆盖」的产品
   const fillSamples = sanitizeProducts(getSampleProducts()).filter((s) => !realKeys.has(dedupeKey(s)));

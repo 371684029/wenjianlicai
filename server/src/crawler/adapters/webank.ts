@@ -49,6 +49,16 @@ export const webankAdapter: SourceAdapter = {
       if (end < 0) end = cells.length;
       const block = cells.slice(start, end);
 
+      // 微众官网公告页长期未更新（如停留在 2016），实时利率以 App 为准。
+      // 若解析到的生效日期过旧（>2 年），视为不可用并丢弃，交由 run.ts 回退示例，避免过时高息误导。
+      if (dataDate) {
+        const ageDays = (Date.now() - new Date(dataDate).getTime()) / 86_400_000;
+        if (Number.isFinite(ageDays) && ageDays > 730) {
+          console.warn(`[crawler] 微众银行 官网公告利率已过时（${dataDate}），丢弃→回退示例`);
+          return products;
+        }
+      }
+
       const isNum = (s: string) => /^\d+(\.\d+)?$/.test(s);
       for (const [term, termDays] of Object.entries(TERM_DAYS)) {
         const ti = block.indexOf(term);
