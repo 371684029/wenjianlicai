@@ -2,6 +2,9 @@
 import { computed, onMounted, ref } from 'vue';
 import { fetchRates, type RateMatrix, type RateCell } from '../api';
 import { formatTerm, reliabilityTagType, dataYear, isAvailable } from '../format';
+import { useIsMobile } from '../useIsMobile';
+
+const { isMobile } = useIsMobile();
 
 const deposit = ref<RateMatrix | null>(null);
 const cd = ref<RateMatrix | null>(null);
@@ -49,6 +52,12 @@ function cellUnavailable(matrix: RateMatrix | null, bank: string, term: number):
 }
 
 const depositSample = computed(() => deposit.value?.rows.some((r) => r.isSample) ?? false);
+
+// 移动端：两类利率统一渲染
+const matrices = computed(() => [
+  { title: '整存整取定期存款利率', hint: '', m: deposit.value },
+  { title: '大额存单利率', hint: '（20 万元起购）', m: cd.value },
+]);
 </script>
 
 <template>
@@ -62,7 +71,72 @@ const depositSample = computed(() => deposit.value?.rows.some((r) => r.isSample)
       style="margin-bottom: 16px"
     />
 
+    <!-- 移动端：按银行卡片 -->
+    <template v-if="isMobile">
+      <el-card
+        v-for="grp in matrices"
+        :key="grp.title"
+        shadow="never"
+        style="margin-bottom: 12px"
+      >
+        <template #header>
+          <b>{{ grp.title }}</b>
+          <span
+            v-if="grp.hint"
+            class="hint"
+          >{{ grp.hint }}</span>
+        </template>
+        <div
+          v-for="row in grp.m?.rows || []"
+          :key="row.bank"
+          class="rate-card"
+        >
+          <div class="rate-card-head">
+            <b>{{ row.bank }}</b>
+            <span class="rate-card-meta">
+              {{ dataYear(row.dataDate) }}
+              <el-tag
+                :type="reliabilityTagType(row.reliability)"
+                effect="plain"
+                size="small"
+              >
+                可靠 {{ row.reliability }}
+              </el-tag>
+            </span>
+          </div>
+          <div class="rate-chips">
+            <div
+              v-for="term in grp.m?.terms || []"
+              :key="term"
+              class="chip"
+            >
+              <div class="chip-term">
+                {{ formatTerm(term) }}
+              </div>
+              <div
+                class="chip-val"
+                :class="{
+                  best: isBest(grp.m, row.bank, term),
+                  unavailable: !!cellUnavailable(grp.m, row.bank, term),
+                }"
+              >
+                {{ cellText(grp.m, row.bank, term) }}
+              </div>
+              <div
+                v-if="cellUnavailable(grp.m, row.bank, term)"
+                class="chip-status"
+              >
+                {{ cellUnavailable(grp.m, row.bank, term) }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </el-card>
+    </template>
+
+    <!-- 桌面端：对比表 -->
     <el-card
+      v-if="!isMobile"
       shadow="never"
       style="margin-bottom: 16px"
     >
@@ -138,7 +212,10 @@ const depositSample = computed(() => deposit.value?.rows.some((r) => r.isSample)
       </el-table>
     </el-card>
 
-    <el-card shadow="never">
+    <el-card
+      v-if="!isMobile"
+      shadow="never"
+    >
       <template #header>
         <b>大额存单利率</b>
         <span class="hint">（20 万元起购）</span>
@@ -224,5 +301,59 @@ const depositSample = computed(() => deposit.value?.rows.some((r) => r.isSample)
   margin-left: 8px;
   color: #909399;
   font-size: 13px;
+}
+
+/* 移动端利率卡片 */
+.rate-card {
+  padding: 10px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+.rate-card:last-child {
+  border-bottom: none;
+}
+.rate-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.rate-card-meta {
+  font-size: 12px;
+  color: #909399;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.rate-chips {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.chip {
+  background: #f7f8fa;
+  border-radius: 8px;
+  padding: 6px 4px;
+  text-align: center;
+}
+.chip-term {
+  font-size: 11px;
+  color: #909399;
+}
+.chip-val {
+  font-size: 15px;
+  font-weight: 700;
+  color: #303133;
+}
+.chip-val.best {
+  color: #c0392b;
+}
+.chip-val.unavailable {
+  color: #c0c4cc;
+  text-decoration: line-through;
+  font-weight: 400;
+}
+.chip-status {
+  font-size: 10px;
+  color: #c0392b;
 }
 </style>

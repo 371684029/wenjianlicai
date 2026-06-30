@@ -10,8 +10,11 @@ import {
   dataYear,
   isAvailable,
 } from '../format';
+import { useIsMobile } from '../useIsMobile';
 
 defineProps<{ items: Product[]; loading?: boolean; showScore?: boolean }>();
+
+const { isMobile } = useIsMobile();
 
 // 不可买的行整体置灰
 function rowClass({ row }: { row: Product }): string {
@@ -20,7 +23,89 @@ function rowClass({ row }: { row: Product }): string {
 </script>
 
 <template>
+  <!-- 移动端：卡片列表 -->
+  <div
+    v-if="isMobile"
+    v-loading="loading"
+    class="card-list"
+  >
+    <div
+      v-for="p in items"
+      :key="p.id"
+      class="p-card"
+      :class="{ 'p-card-unavailable': !isAvailable(p.status) }"
+    >
+      <div class="p-card-head">
+        <div class="p-card-name">
+          {{ p.name }}
+        </div>
+        <el-tag
+          :type="statusTagType(p.status)"
+          size="small"
+        >
+          {{ p.status }}
+        </el-tag>
+      </div>
+      <div class="p-card-yield-row">
+        <span class="p-card-yield">{{ formatYield(p) }}</span>
+        <span class="p-card-yieldtype">{{ p.yieldType }}</span>
+        <el-tag
+          v-if="showScore"
+          type="warning"
+          effect="plain"
+          size="small"
+        >
+          推荐分 {{ p.score }}
+        </el-tag>
+      </div>
+      <div class="p-card-tags">
+        <el-tag size="small">
+          {{ p.bank }}
+        </el-tag>
+        <el-tag
+          type="info"
+          size="small"
+        >
+          {{ p.category }}
+        </el-tag>
+        <el-tag
+          :type="riskTagType(p.riskLevel)"
+          size="small"
+        >
+          {{ p.riskLevel }}
+        </el-tag>
+      </div>
+      <div class="p-card-meta">
+        <span>期限 {{ formatTerm(p.termDays) }}</span>
+        <span>{{ formatAmount(p.minAmount) }}</span>
+      </div>
+      <div class="p-card-foot">
+        <span>数据年份 {{ dataYear(p.dataDate) }}</span>
+        <el-tag
+          :type="reliabilityTagType(p.reliability)"
+          effect="plain"
+          size="small"
+        >
+          可靠 {{ p.reliability }}
+        </el-tag>
+        <el-tag
+          v-if="p.isSample"
+          type="info"
+          size="small"
+        >
+          示例
+        </el-tag>
+      </div>
+    </div>
+    <el-empty
+      v-if="!items.length && !loading"
+      description="暂无数据"
+    />
+  </div>
+
+  <!-- 桌面端：表格 -->
   <el-table
+    v-else
     v-loading="loading"
     :data="items"
     :row-class-name="rowClass"
@@ -176,5 +261,72 @@ function rowClass({ row }: { row: Product }): string {
 }
 :deep(.row-unavailable) .yield {
   color: #c0c4cc;
+}
+
+/* 移动端卡片 */
+.card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.p-card {
+  background: #fff;
+  border: 1px solid #ebeef5;
+  border-radius: 10px;
+  padding: 12px;
+}
+.p-card-unavailable {
+  background: #fafafa;
+  opacity: 0.7;
+}
+.p-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+.p-card-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #303133;
+  line-height: 1.3;
+}
+.p-card-yield-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 8px 0;
+  flex-wrap: wrap;
+}
+.p-card-yield {
+  font-size: 22px;
+  font-weight: 800;
+  color: #c0392b;
+}
+.p-card-yieldtype {
+  font-size: 12px;
+  color: #909399;
+}
+.p-card-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.p-card-meta {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  color: #606266;
+  font-size: 13px;
+}
+.p-card-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #ebeef5;
+  color: #909399;
+  font-size: 12px;
 }
 </style>

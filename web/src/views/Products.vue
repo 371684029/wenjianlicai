@@ -2,6 +2,9 @@
 import { onMounted, reactive, ref } from 'vue';
 import { fetchProducts, fetchMeta, type Product, type Meta, type ProductQuery } from '../api';
 import ProductTable from '../components/ProductTable.vue';
+import { useIsMobile } from '../useIsMobile';
+
+const { isMobile } = useIsMobile();
 
 const items = ref<Product[]>([]);
 const meta = ref<Meta | null>(null);
@@ -47,7 +50,10 @@ onMounted(async () => {
       shadow="never"
       style="margin-bottom: 16px"
     >
-      <el-form :inline="true">
+      <el-form
+        :inline="!isMobile"
+        class="filter-form"
+      >
         <el-form-item label="银行">
           <el-select
             v-model="filters.bank"
@@ -150,5 +156,19 @@ onMounted(async () => {
   margin-left: 8px;
   color: #909399;
   font-size: 13px;
+}
+
+/* 移动端：筛选项纵向铺满 */
+@media (max-width: 768px) {
+  .filter-form :deep(.el-form-item) {
+    display: flex;
+    margin-bottom: 12px;
+  }
+  .filter-form :deep(.el-form-item__content) {
+    flex: 1;
+  }
+  .filter-form :deep(.el-select) {
+    width: 100% !important;
+  }
 }
 </style>

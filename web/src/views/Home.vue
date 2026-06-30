@@ -35,7 +35,10 @@ onMounted(async () => {
       :gutter="16"
       style="margin-bottom: 16px"
     >
-      <el-col :span="6">
+      <el-col
+        :xs="12"
+        :sm="6"
+      >
         <el-card shadow="never">
           <div class="stat">
             <div class="num">
@@ -46,7 +49,10 @@ onMounted(async () => {
           </div>
         </el-card>
       </el-col>
-      <el-col :span="6">
+      <el-col
+        :xs="12"
+        :sm="6"
+      >
         <el-card shadow="never">
           <div class="stat">
             <div class="num">
@@ -57,7 +63,10 @@ onMounted(async () => {
           </div>
         </el-card>
       </el-col>
-      <el-col :span="6">
+      <el-col
+        :xs="12"
+        :sm="6"
+      >
         <el-card shadow="never">
           <div class="stat">
             <div class="num">
@@ -68,7 +77,10 @@ onMounted(async () => {
           </div>
         </el-card>
       </el-col>
-      <el-col :span="6">
+      <el-col
+        :xs="12"
+        :sm="6"
+      >
         <el-card shadow="never">
           <div class="stat">
             <div class="num">
@@ -106,5 +118,13 @@ onMounted(async () => {
 .label {
   color: #909399;
   font-size: 13px;
+}
+@media (max-width: 768px) {
+  .el-col {
+    margin-bottom: 12px;
+  }
+  .num {
+    font-size: 20px;
+  }
 }
 </style>
