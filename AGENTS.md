@@ -23,7 +23,8 @@
 
 ### 生产/部署(无 Docker)
 - `npm run build` 后 `npm start`:Node 单进程在 `3001` 同时托管前端构建产物 `web/dist` 与 `/api`(见 `server/src/index.ts`,仅当 `web/dist` 存在时启用静态托管)。
-- 定时更新数据用服务器 `cron` 调 `npm run crawl`。
+- 定时更新数据用服务器 `cron` 调 `npm run crawl`(数据更新脚本,与网站常驻进程相互独立)。约定排程为**每周一 00:00**(`0 0 * * 1`);完整 crontab 配置(含 PATH/绝对路径/日志)见 `README.md` 的「定时任务」章节。
+- `npm run crawl` 写示例前会先清空旧示例(`deleteSamples`),保证幂等;改动示例 code 也不会残留旧行。
 
 ### 用户偏好(务必遵守)
 - 业务代码里接口返回的异常不要再 toast Error。
