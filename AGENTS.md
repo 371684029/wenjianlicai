@@ -13,7 +13,11 @@
 - 首次或新克隆后,数据库为空,**必须先 `npm run crawl`(或 `npm run seed`)再 `npm run dev`**,否则页面无数据。
 - SQLite 文件在 `server/data/licai.db`,已被 gitignore;`server/data/` 目录不入库,故每个新环境都需先跑一次 `crawl`。
 - 抓取主流程为「真实优先 + 按产品回退示例」(`run.ts`):汇总各真实适配器数据,再用示例补齐**真实未覆盖**的产品(按 `dedupeKey` 去重),保证五家银行都有内容。每轮抓取前会 `deleteRealData()` + `deleteSamples()` 全量刷新,避免下架/改版残留。
-- 真实数据源现状:**招商**定期存款为真实(招商官网 JSON 接口 `adapters/cmb.ts`,可靠「高」);平安/建设/网商/微众官网为 SPA 动态渲染/反爬,静态抓不到,暂用示例(可靠「低」)。新增真实源:实现 `SourceAdapter` 并在 `run.ts` 的 `ADAPTERS` 注册,产品 `code` 与示例一致即可自动合并去重。
+- 真实数据源现状(五家均已建适配器并注册到 `run.ts`):
+  - **招商** `adapters/cmb.ts`:官网 JSON 接口,定期存款真实(可靠「高」)。
+  - **建设** `adapters/ccb.ts`:官网利率页 iframe(`#detail__`)静态表格解析,定期存款真实(可靠「高」,数据日期以官网为准,可能滞后)。
+  - **平安/网商/微众** `adapters/{pingan,mybank,webank}.ts`:best-effort,官网 SPA/反爬静态抓不到,返回空→回退示例(可靠「低」)。
+  - 新增/完善真实源:实现 `SourceAdapter` 并在 `run.ts` 的 `ADAPTERS` 注册,产品 `code` 与示例一致即自动去重合并。动态渲染站点可逆向数据接口或引入 Playwright。
 
 ### 开发模式注意
 - `npm run dev` 用 `concurrently` 同时起后端(`tsx watch`)与前端(`vite`)。后端改 `server/src` 会热重载;但**爬虫只在手动 `npm run crawl` 时运行**,不随 dev 自动刷新数据。

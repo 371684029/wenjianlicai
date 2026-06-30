@@ -3,12 +3,25 @@ import { upsertProducts, deleteSamples, deleteRealData, dedupeKey } from '../rep
 import type { SourceAdapter } from './adapter.js';
 import { chinawealthAdapter } from './adapters/chinawealth.js';
 import { cmbAdapter } from './adapters/cmb.js';
+import { ccbAdapter } from './adapters/ccb.js';
+import { pinganAdapter } from './adapters/pingan.js';
+import { mybankAdapter } from './adapters/mybank.js';
+import { webankAdapter } from './adapters/webank.js';
 import { getSampleProducts } from './sampleData.js';
 import { sanitizeProducts } from './normalize.js';
 import type { RawProduct } from '../types.js';
 
-// 真实数据源适配器（可逐家银行扩展）
-const ADAPTERS: SourceAdapter[] = [cmbAdapter, chinawealthAdapter];
+// 真实数据源适配器（逐家银行 + 中国理财网）。已写进脚本，逐家攻克真实接口：
+// - 招商/建设：已接入官网真实挂牌利率
+// - 平安/网商/微众：best-effort（官网 SPA/反爬，暂回退示例，框架就绪待完善）
+const ADAPTERS: SourceAdapter[] = [
+  cmbAdapter,
+  ccbAdapter,
+  pinganAdapter,
+  mybankAdapter,
+  webankAdapter,
+  chinawealthAdapter,
+];
 
 /**
  * 抓取主流程：
