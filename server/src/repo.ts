@@ -52,6 +52,12 @@ export function deleteSamples(): number {
   return info.changes;
 }
 
+/** 删除全部真实数据（isSample=0），用于每轮抓取前全量刷新，避免下架/改版残留 */
+export function deleteRealData(): number {
+  const info = db.prepare('DELETE FROM products WHERE isSample = 0').run();
+  return info.changes;
+}
+
 export interface QueryParams {
   bank?: Bank;
   category?: Category;
