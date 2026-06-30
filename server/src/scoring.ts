@@ -48,11 +48,14 @@ export function scoreProducts(products: Product[]): ScoredProduct[] {
 
     const riskScore = RISK_SCORE[p.riskLevel] ?? 0;
 
-    const ts = new Date(p.updatedAt).getTime();
-    const ageDays = Number.isFinite(ts) ? (now - ts) / 86_400_000 : 0;
-    const freshScore = Math.max(0, Math.min(1, 1 - ageDays / 30)); // 30 天线性衰减
+    // 新鲜度以「数据日期」为准（无则用入库时间）；按 3 年线性衰减
+    const dt = p.dataDate ? new Date(p.dataDate).getTime() : new Date(p.updatedAt).getTime();
+    const ageDays = Number.isFinite(dt) ? (now - dt) / 86_400_000 : 365;
+    const freshScore = Math.max(0, Math.min(1, 1 - ageDays / 1095));
 
     let score = 0.6 * yieldScore + 0.3 * riskScore + 0.1 * freshScore;
+    // 数据明显过时（>2 年）整体降权，避免陈旧高息污染推荐
+    if (ageDays > 730) score *= 0.6;
     if (!Number.isFinite(score)) score = 0;
     return { ...p, score: Math.round(score * 1000) / 1000 };
   });
