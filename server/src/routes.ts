@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { queryProducts, getProductById, getMeta, getRateMatrix, getCoverage, type QueryParams } from './repo.js';
+import { queryProducts, getProductById, getMeta, getRateMatrix, getCoverage, addManualProducts, type QueryParams, type ManualRow } from './repo.js';
 import { BANKS, CATEGORIES, RISK_LEVELS, type Bank, type Category, type RiskLevel } from './types.js';
 
 export const api = Router();
@@ -15,6 +15,17 @@ api.get('/meta', (_req, res) => {
 // 数据覆盖报告：5 家银行 × 4 类产品，哪些格缺失数据，由前端高亮提示用户手动补录
 api.get('/coverage', (_req, res) => {
   res.json(getCoverage());
+});
+
+// 手工补录批量入库：前端把粘贴文本解析为 ManualRow[] 后 POST 上来
+api.post('/manual/import', (req, res) => {
+  const body = req.body as { rows?: unknown } | undefined;
+  if (!body || !Array.isArray(body.rows)) {
+    res.status(400).json({ ok: 0, failed: [], error: 'body.rows 必须是数组' });
+    return;
+  }
+  const result = addManualProducts(body.rows as ManualRow[]);
+  res.json(result);
 });
 
 // 利率矩阵：定期存款（1/2/3/5年）与大额存单

@@ -30,6 +30,9 @@ const route = useRoute();
         <el-menu-item index="/products">
           全部产品
         </el-menu-item>
+        <el-menu-item index="/manual-import">
+          手工补录
+        </el-menu-item>
       </el-menu>
     </el-header>
 

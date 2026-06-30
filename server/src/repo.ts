@@ -1,5 +1,5 @@
 import { db } from './db.js';
-import { isAvailable, BANKS, CATEGORIES, type Product, type RawProduct, type Bank, type Category, type RiskLevel, type Reliability } from './types.js';
+import { isAvailable, BANKS, CATEGORIES, RISK_LEVELS, YIELD_TYPES, STATUSES, type Product, type RawProduct, type Bank, type Category, type RiskLevel, type YieldType, type Status, type Reliability } from './types.js';
 import { scoreProducts, type ScoredProduct } from './scoring.js';
 
 export function dedupeKey(p: RawProduct): string {
@@ -287,6 +287,95 @@ export function getCoverage(): CoverageReport {
 
 const BANKS_FULL_LIST: Bank[] = [...BANKS];
 const CATEGORIES_FULL_LIST: Category[] = [...CATEGORIES];
+
+/** 人工补录一条产品：字段名跟用户输入格式对齐，未填字段用合理默认值 */
+export interface ManualRow {
+  bank: string;
+  category: string;
+  name: string;
+  code: string | null;     // 产品登记编码 Z/C 开头，定期存款可不填
+  riskLevel: string | null;
+  yieldType: string | null;
+  yieldMin: number;
+  yieldMax: number;
+  termDays: number;
+  minAmount: number;
+  dataDate: string | null; // YYYY-MM-DD
+  sourceUrl: string | null;
+  status: string | null;   // 默认 在售
+}
+
+export interface ImportResult {
+  ok: number;
+  failed: { row: number; reason: string; input: ManualRow }[];
+}
+
+/**
+ * 批量手工补录：把用户从截图读出的若干条产品写入 products 表。
+ * 字段未给就用安全默认（riskLevel 由 category 推断、yieldType 默认业绩比较基准/存款利率等）。
+ * 单条异常不影响其余写入；返回成功条数与失败明细。
+ * sourceName 固定填「手工补录」、isSample=0、reliability=「高」(因为是人工看截图直接录入)。
+ */
+export function addManualProducts(rows: ManualRow[]): ImportResult {
+  const ok: number[] = [];
+  const failed: ImportResult['failed'] = [];
+
+  rows.forEach((r, idx) => {
+    const reason: string[] = [];
+
+    // 校验：bank/category 必须在 known 枚举
+    if (!BANKS.includes(r.bank as Bank)) reason.push('bank');
+    if (!CATEGORIES.includes(r.category as Category)) reason.push('category');
+    if (!r.name || !r.name.trim()) reason.push('name');
+    if (typeof r.yieldMin !== 'number' || typeof r.yieldMax !== 'number' || r.yieldMin < 0 || r.yieldMax < r.yieldMin) reason.push('yield');
+
+    if (reason.length > 0) {
+      failed.push({ row: idx + 1, reason: reason.join(','), input: r });
+      return;
+    }
+
+    // 安全默认值
+    const risk: RiskLevel = (r.riskLevel && RISK_LEVELS.includes(r.riskLevel as RiskLevel)) ? r.riskLevel as RiskLevel
+      : (r.category === '定期存款' || r.category === '大额存单' ? '存款保险' : 'R2');
+    const yieldType: YieldType = (r.yieldType && YIELD_TYPES.includes(r.yieldType as YieldType)) ? r.yieldType as YieldType
+      : (r.category === '定期存款' || r.category === '大额存单' ? '存款利率' : '业绩比较基准');
+    const status: Status = (r.status && STATUSES.includes(r.status as Status)) ? r.status as Status : '在售';
+    const termDaysNum = Math.max(0, Math.round(typeof r.termDays === 'number' ? r.termDays : 0));
+    const minAmountNum = Math.max(0, typeof r.minAmount === 'number' ? r.minAmount : 0);
+    const today = new Date().toISOString().slice(0, 10);
+    const code = r.code && r.code.trim() ? r.code.trim() : null;
+
+    const raw: RawProduct = {
+      bank: r.bank as Bank,
+      category: r.category as Category,
+      name: r.name.trim(),
+      code,
+      riskLevel: risk,
+      yieldType,
+      yieldMin: r.yieldMin,
+      yieldMax: r.yieldMax,
+      termDays: termDaysNum,
+      minAmount: minAmountNum,
+      startDate: r.dataDate || today,
+      principalSecured: risk === '存款保险' ? 1 : 0,
+      status,
+      reliability: '高',
+      dataDate: r.dataDate || today,
+      sourceName: '手工补录',
+      sourceUrl: r.sourceUrl,
+      isSample: 0,
+    };
+
+    try {
+      upsertProducts([raw]);
+      ok.push(idx + 1);
+    } catch (err) {
+      failed.push({ row: idx + 1, reason: 'write:' + (err as Error).message, input: r });
+    }
+  });
+
+  return { ok: ok.length, failed };
+}
 
 export function getMeta(): MetaInfo {
   const total = (db.prepare('SELECT COUNT(*) c FROM products').get() as { c: number }).c;

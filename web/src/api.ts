@@ -116,3 +116,29 @@ export async function fetchCoverage(): Promise<CoverageReport> {
   const { data } = await http.get<CoverageReport>('/coverage');
   return data;
 }
+
+export interface ManualRow {
+  bank: string;
+  category: string;
+  name: string;
+  code: string | null;
+  riskLevel: string | null;
+  yieldType: string | null;
+  yieldMin: number;
+  yieldMax: number;
+  termDays: number;
+  minAmount: number;
+  dataDate: string | null;
+  sourceUrl: string | null;
+  status: string | null;
+}
+
+export interface ImportResult {
+  ok: number;
+  failed: { row: number; reason: string; input: ManualRow }[];
+}
+
+export async function postManualImport(rows: ManualRow[]): Promise<ImportResult> {
+  const { data } = await http.post<ImportResult>('/manual/import', { rows });
+  return data;
+}

@@ -79,8 +79,9 @@ function refresh() {
       class="alert"
     >
       <div class="alert-text">
-        下列 ⚠️ 缺失格没有自动抓到的真实数据，请到对应银行官网/App 截图当前挂牌信息，
-        再到 <code>/server/src/crawler/adapters/</code> 编辑适配器并重跑 <code>npm run crawl</code>。
+        下列 ⚠️ 缺失格没有自动抓到的真实数据。截一张银行 App/官网的利率或产品图，
+        到 <router-link to="/manual-import" class="link">手工补录</router-link> 页
+        一行一条粘贴即可补上(支持批量,支持区间利率)。
         其它格按列出的来源/日期判断可信度。
       </div>
     </el-alert>
