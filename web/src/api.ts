@@ -90,3 +90,29 @@ export async function fetchRates(): Promise<RatesResponse> {
   const { data } = await http.get<RatesResponse>('/rates');
   return data;
 }
+
+export interface CoverageCell {
+  bank: string;
+  category: string;
+  count: number;
+  sources: string[];
+  lastDataDate: string | null;
+  reliability: string;
+  missing: boolean;
+  suggestion: string;
+}
+
+export interface CoverageReport {
+  banks: string[];
+  categories: string[];
+  matrix: CoverageCell[];
+  totalMissing: number;
+  totalCells: number;
+  banksWithData: string[];
+  lastUpdated: string | null;
+}
+
+export async function fetchCoverage(): Promise<CoverageReport> {
+  const { data } = await http.get<CoverageReport>('/coverage');
+  return data;
+}

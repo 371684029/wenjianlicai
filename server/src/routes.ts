@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { queryProducts, getProductById, getMeta, getRateMatrix, type QueryParams } from './repo.js';
+import { queryProducts, getProductById, getMeta, getRateMatrix, getCoverage, type QueryParams } from './repo.js';
 import { BANKS, CATEGORIES, RISK_LEVELS, type Bank, type Category, type RiskLevel } from './types.js';
 
 export const api = Router();
@@ -10,6 +10,11 @@ api.get('/health', (_req, res) => {
 
 api.get('/meta', (_req, res) => {
   res.json(getMeta());
+});
+
+// 数据覆盖报告：5 家银行 × 4 类产品，哪些格缺失数据，由前端高亮提示用户手动补录
+api.get('/coverage', (_req, res) => {
+  res.json(getCoverage());
 });
 
 // 利率矩阵：定期存款（1/2/3/5年）与大额存单

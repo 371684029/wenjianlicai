@@ -9,7 +9,6 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "crawl": "tsx src/crawler/run.ts",
-    "seed": "tsx src/crawler/seed.ts",
     "lint": "eslint \"src/**/*.ts\""
   },
   "dependencies": {

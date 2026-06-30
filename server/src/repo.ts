@@ -1,5 +1,5 @@
 import { db } from './db.js';
-import { isAvailable, type Product, type RawProduct, type Bank, type Category, type RiskLevel, type Reliability } from './types.js';
+import { isAvailable, BANKS, CATEGORIES, type Product, type RawProduct, type Bank, type Category, type RiskLevel, type Reliability } from './types.js';
 import { scoreProducts, type ScoredProduct } from './scoring.js';
 
 export function dedupeKey(p: RawProduct): string {
@@ -209,6 +209,84 @@ export function getRateMatrix(category: Category): RateMatrix {
     updatedAt: last.m,
   };
 }
+
+export interface CoverageCell {
+  bank: Bank;
+  category: Category;
+  count: number;
+  sources: string[];     // distinct sourceName ( xếp 来自哪份)
+  lastDataDate: string | null;
+  reliability: Reliability | '未知';
+  missing: boolean;      // 该格无任何真实数据
+  suggestion: string;    // 缺数据时给操作引导
+}
+
+export interface CoverageReport {
+  banks: Bank[];
+  categories: Category[];
+  matrix: CoverageCell[];
+  totalMissing: number;  // 缺失格数
+  totalCells: number;    // 总格数 (banks.length * categories.length)
+  banksWithData: Bank[];
+  lastUpdated: string | null;
+}
+
+const COVER_SUGGESTION: Record<Category, string> = {
+  定期存款: '请到对应银行官网「存款利率」页截图当前整存整取挂牌利率，补录期限/利率/生效日期',
+  大额存单: '请到对应银行 App 或官网「大额存单」页截图当前发售产品，补录起购金额、期限、利率、状态',
+  定期理财: '请到对应银行 App「理财」页或中国理财网筛选该理财子公司，截图近 1-2 期在售定开/封闭产品',
+  活期理财: '请到对应银行 App「理财」页或中国理财网筛选现金管理类产品，截图近 1-2 期 7 日年化/1 日年化',
+};
+
+export function getCoverage(): CoverageReport {
+  const banks: Bank[] = BANKS_FULL_LIST;
+  const categories: Category[] = CATEGORIES_FULL_LIST;
+  const totalCells = banks.length * categories.length;
+
+  // 一次拉全部 isSample=0 的真实数据,在内存里聚合
+  const rows = db
+    .prepare("SELECT * FROM products WHERE isSample = 0 ORDER BY bank, category")
+    .all() as Product[];
+
+  const key = (b: string, c: string) => `${b}|${c}`;
+  const byCell = new Map<string, { count: number; sources: Set<string>; last: string | null; reliability: Reliability | '未知' }>();
+  for (const p of rows) {
+    const k = key(p.bank, p.category);
+    let e = byCell.get(k);
+    if (!e) { e = { count: 0, sources: new Set(), last: null, reliability: '未知' }; byCell.set(k, e); }
+    e.count++;
+    if (p.sourceName) e.sources.add(p.sourceName);
+    if (p.dataDate && (!e.last || p.dataDate > e.last)) e.last = p.dataDate;
+    if ((p.reliability as Reliability) && e.reliability === '未知') e.reliability = p.reliability as Reliability;
+  }
+
+  const matrix: CoverageCell[] = [];
+  let totalMissing = 0;
+  for (const b of banks) {
+    for (const c of categories) {
+      const e = byCell.get(key(b, c));
+      const missing = !e || e.count === 0;
+      if (missing) totalMissing++;
+      matrix.push({
+        bank: b,
+        category: c,
+        count: e?.count ?? 0,
+        sources: e ? [...e.sources] : [],
+        lastDataDate: e?.last ?? null,
+        reliability: e?.reliability ?? '未知',
+        missing,
+        suggestion: missing ? COVER_SUGGESTION[c] : '',
+      });
+    }
+  }
+
+  const banksWithData = [...new Set(rows.map((r) => r.bank))];
+  const last = db.prepare('SELECT MAX(updatedAt) m FROM products').get() as { m: string | null };
+  return { banks, categories, matrix, totalMissing, totalCells, banksWithData, lastUpdated: last.m };
+}
+
+const BANKS_FULL_LIST: Bank[] = [...BANKS];
+const CATEGORIES_FULL_LIST: Category[] = [...CATEGORIES];
 
 export function getMeta(): MetaInfo {
   const total = (db.prepare('SELECT COUNT(*) c FROM products').get() as { c: number }).c;

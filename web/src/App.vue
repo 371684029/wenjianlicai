@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useRoute } from 'vue-router';
+import CoverageBanner from './components/CoverageBanner.vue';
 const route = useRoute();
 </script>
 
@@ -34,6 +35,7 @@ const route = useRoute();
 
     <el-main class="main">
       <div class="page-container">
+        <CoverageBanner />
         <router-view />
       </div>
     </el-main>
