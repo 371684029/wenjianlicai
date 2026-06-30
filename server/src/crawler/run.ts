@@ -1,7 +1,7 @@
 import { initSchema } from '../db.js';
 import { upsertProducts, deleteSamples, deleteRealData, dedupeKey } from '../repo.js';
 import type { SourceAdapter } from './adapter.js';
-import { chinawealthAdapter } from './adapters/chinawealth.js';
+import { chinawealthPlaywrightAdapter } from './adapters/chinawealthPlaywright.js';
 import { cmbAdapter } from './adapters/cmb.js';
 import { ccbAdapter } from './adapters/ccb.js';
 import { pinganAdapter } from './adapters/pingan.js';
@@ -11,16 +11,18 @@ import { getSampleProducts } from './sampleData.js';
 import { sanitizeProducts } from './normalize.js';
 import type { RawProduct } from '../types.js';
 
-// 真实数据源适配器（逐家银行 + 中国理财网）。已写进脚本，逐家攻克真实接口：
+// 真实数据源适配器（逐家银行 + 中国理财网）。
 // - 招商/建设：已接入官网真实挂牌利率
 // - 平安/网商/微众：best-effort（官网 SPA/反爬，暂回退示例，框架就绪待完善）
+// - 中国理财网(Playwright)：真浏览器渲染绕过 token+加密 req body，从 /prod/search
+//   明文 JSON 拿数据；同一 IP 短期高频访问会触发滑块 captcha，crontab 自然低频跑
 const ADAPTERS: SourceAdapter[] = [
   cmbAdapter,
   ccbAdapter,
   pinganAdapter,
   mybankAdapter,
   webankAdapter,
-  chinawealthAdapter,
+  chinawealthPlaywrightAdapter,
 ];
 
 /**
