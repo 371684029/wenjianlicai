@@ -3,6 +3,7 @@ import { upsertProducts, deleteSamples } from '../repo.js';
 import type { SourceAdapter } from './adapter.js';
 import { chinawealthAdapter } from './adapters/chinawealth.js';
 import { getSampleProducts } from './sampleData.js';
+import { sanitizeProducts } from './normalize.js';
 
 const ADAPTERS: SourceAdapter[] = [chinawealthAdapter];
 
@@ -16,24 +17,30 @@ async function main(): Promise<void> {
 
   for (const adapter of ADAPTERS) {
     try {
-      const items = await adapter.fetch();
+      const fetched = await adapter.fetch();
+      const items = sanitizeProducts(Array.isArray(fetched) ? fetched : []);
       if (items.length > 0) {
         const n = upsertProducts(items);
         realCount += n;
         console.log(`[crawler] ${adapter.name}: 入库 ${n} 条真实数据`);
       } else {
-        console.log(`[crawler] ${adapter.name}: 无真实数据`);
+        console.log(`[crawler] ${adapter.name}: 无有效数据`);
       }
     } catch (err) {
+      // 单个数据源异常不影响整体流程
       console.warn(`[crawler] ${adapter.name} 异常：${(err as Error).message}`);
     }
   }
 
   if (realCount === 0) {
-    deleteSamples(); // 清除旧示例，避免残留
-    const samples = getSampleProducts();
-    const n = upsertProducts(samples);
-    console.log(`[crawler] 真实数据为空，回退写入示例数据 ${n} 条（界面标注「示例」）`);
+    try {
+      deleteSamples(); // 清除旧示例，避免残留
+      const samples = sanitizeProducts(getSampleProducts());
+      const n = upsertProducts(samples);
+      console.log(`[crawler] 真实数据为空，回退写入示例数据 ${n} 条（界面标注「示例」）`);
+    } catch (err) {
+      console.warn(`[crawler] 写入示例数据失败：${(err as Error).message}`);
+    }
   }
 
   console.log('[crawler] 完成。');

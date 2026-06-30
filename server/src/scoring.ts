@@ -43,14 +43,17 @@ export function scoreProducts(products: Product[]): ScoredProduct[] {
     const b = termBucket(p.termDays);
     const range = buckets.get(b)!;
     const y = (p.yieldMin + p.yieldMax) / 2;
-    const yieldScore = range.max === range.min ? 1 : (y - range.min) / (range.max - range.min);
+    let yieldScore = range.max === range.min ? 1 : (y - range.min) / (range.max - range.min);
+    if (!Number.isFinite(yieldScore)) yieldScore = 0;
 
     const riskScore = RISK_SCORE[p.riskLevel] ?? 0;
 
-    const ageDays = (now - new Date(p.updatedAt).getTime()) / 86_400_000;
-    const freshScore = Math.max(0, 1 - ageDays / 30); // 30 天线性衰减
+    const ts = new Date(p.updatedAt).getTime();
+    const ageDays = Number.isFinite(ts) ? (now - ts) / 86_400_000 : 0;
+    const freshScore = Math.max(0, Math.min(1, 1 - ageDays / 30)); // 30 天线性衰减
 
-    const score = 0.6 * yieldScore + 0.3 * riskScore + 0.1 * freshScore;
+    let score = 0.6 * yieldScore + 0.3 * riskScore + 0.1 * freshScore;
+    if (!Number.isFinite(score)) score = 0;
     return { ...p, score: Math.round(score * 1000) / 1000 };
   });
 }

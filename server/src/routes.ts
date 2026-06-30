@@ -20,6 +20,13 @@ api.get('/rates', (_req, res) => {
   });
 });
 
+// 把查询参数安全转为有限数字，非法返回 null（避免 NaN 进入 SQL 绑定导致异常）
+function toFiniteNum(v: unknown): number | null {
+  if (typeof v !== 'string' || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
 function parseQuery(q: Record<string, unknown>): QueryParams {
   const params: QueryParams = {};
   if (typeof q.bank === 'string' && BANKS.includes(q.bank as Bank)) params.bank = q.bank as Bank;
@@ -29,11 +36,14 @@ function parseQuery(q: Record<string, unknown>): QueryParams {
     params.riskLevel = q.riskLevel as RiskLevel;
   if (q.stableOnly === 'true' || q.stableOnly === '1') params.stableOnly = true;
   if (q.availableOnly === 'true' || q.availableOnly === '1') params.availableOnly = true;
-  if (typeof q.minTerm === 'string' && q.minTerm !== '') params.minTerm = Number(q.minTerm);
-  if (typeof q.maxTerm === 'string' && q.maxTerm !== '') params.maxTerm = Number(q.maxTerm);
+  const minTerm = toFiniteNum(q.minTerm);
+  if (minTerm !== null) params.minTerm = minTerm;
+  const maxTerm = toFiniteNum(q.maxTerm);
+  if (maxTerm !== null) params.maxTerm = maxTerm;
   if (q.sort === 'score' || q.sort === 'yield' || q.sort === 'risk' || q.sort === 'term')
     params.sort = q.sort;
-  if (typeof q.limit === 'string' && q.limit !== '') params.limit = Number(q.limit);
+  const limit = toFiniteNum(q.limit);
+  if (limit !== null && limit > 0) params.limit = limit;
   return params;
 }
 

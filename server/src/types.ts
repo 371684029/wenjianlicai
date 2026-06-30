@@ -16,7 +16,8 @@ export const RISK_LEVELS = ['存款保险', 'R1', 'R2', 'R3', 'R4', 'R5'] as con
 export type RiskLevel = (typeof RISK_LEVELS)[number];
 
 /** 收益口径 */
-export type YieldType = '业绩比较基准' | '7日年化' | '存款利率';
+export const YIELD_TYPES = ['业绩比较基准', '7日年化', '存款利率'] as const;
+export type YieldType = (typeof YIELD_TYPES)[number];
 
 /** 在售状态：仅「在售」可当前购买，其余视为不可买 */
 export const STATUSES = ['在售', '售罄', '已下架', '待售'] as const;

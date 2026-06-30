@@ -24,16 +24,26 @@ const upsertStmt = db.prepare(`
     sourceUrl=excluded.sourceUrl, isSample=excluded.isSample, updatedAt=excluded.updatedAt
 `);
 
-/** 批量写入/更新（按 dedupeKey 去重） */
+/**
+ * 批量写入/更新（按 dedupeKey 去重）。
+ * 单条写入异常会被捕获并跳过，不影响其余数据，避免一条脏数据中断整批入库。
+ * 返回成功写入的条数。
+ */
 export function upsertProducts(items: RawProduct[]): number {
   const now = new Date().toISOString();
+  let ok = 0;
   const tx = db.transaction((rows: RawProduct[]) => {
     for (const r of rows) {
-      upsertStmt.run({ ...r, updatedAt: now, dedupeKey: dedupeKey(r) });
+      try {
+        upsertStmt.run({ ...r, updatedAt: now, dedupeKey: dedupeKey(r) });
+        ok++;
+      } catch (err) {
+        console.warn(`[repo] 跳过写入失败的数据「${r?.name ?? '未知'}」：${(err as Error).message}`);
+      }
     }
   });
   tx(items);
-  return items.length;
+  return ok;
 }
 
 /** 删除全部示例数据（isSample=1），避免示例 code 变更后残留旧行 */
