@@ -1,6 +1,12 @@
 # 稳健理财产品推荐平台 — 可行性方案与计划
 
-> 目标：聚合 **平安银行、招商银行、建设银行** 的理财产品 / 存款信息，按「**利率高优先 + 稳健优先**」做推荐排序；自动化脚本定时拉取数据，部署到服务器，通过网站访问。
+> 目标：聚合 **平安、招商、建设、网商、微众** 的理财产品 / 存款信息，按「**利率高优先 + 稳健优先**」做推荐排序；自动化脚本定时拉取数据，部署到服务器，通过网站访问。
+
+> ✅ 已确认决策（2026-06）：
+> - 数据源：以「中国理财网 + 银行官网公开页」为主，有更优来源可补充。
+> - 技术栈：**前端 Vue 3 + Vite + Element Plus**；**后端 TypeScript + Node（Express）**；数据库 **SQLite**；**不使用 Docker**（直接起 Node 服务）。
+> - 银行范围：**平安 / 招商 / 建设 / 网商 / 微众** 五家。
+> - 部署：云服务器（Ubuntu），Node 进程 + 静态前端，PM2/systemd 守护 + cron 定时抓取。
 
 ---
 
@@ -59,15 +65,15 @@
 
 | 层 | 选型 | 理由 |
 | --- | --- | --- |
-| 爬虫 | **Python 3.11** + `httpx` + `selectolax/parsel`；动态页用 `Playwright` | 生态成熟、解析方便 |
-| 调度 | `APScheduler`（应用内）或服务器 `cron` | 每日定时拉数据 |
-| 数据库 | **SQLite**（MVP）→ 可平滑升级 **PostgreSQL** | MVP 轻量、零运维 |
-| 后端 API | **FastAPI** + `SQLModel/SQLAlchemy` | 类型友好、自带 OpenAPI 文档 |
-| 前端 | **Vue 3 + Vite + Element Plus**（或 React + Ant Design） | 表格筛选场景成熟 |
-| 部署 | **Docker + docker-compose + Nginx** | 一键拉起、反向代理 |
+| 爬虫 | **TypeScript（Node）** + `axios` + `cheerio`；动态页可选 `Playwright` | 与后端同语言，统一维护 |
+| 调度 | 服务器 `cron` 调 `npm run crawl` | 每日定时拉数据，简单可靠 |
+| 数据库 | **SQLite**（`better-sqlite3`） | 轻量、零运维、单文件好备份 |
+| 后端 API | **TypeScript + Express** | Node 生态成熟、起服务简单 |
+| 前端 | **Vue 3 + Vite + Element Plus** | 表格筛选场景成熟 |
+| 部署 | **裸 Node 进程**（PM2 / systemd 守护）+ 可选 Nginx 反代 | 不用 Docker，直接起 node 服务 |
 | 服务器 | 1 台云轻量服务器（2C2G 起步即可） | 数据量小、读多写少 |
 
-> 也可用「Python 全栈」简化：后端 FastAPI 直接用 Jinja2 模板渲染页面，省去独立前端工程，更快出 MVP。最终在阶段 1 决定。
+> 工程结构（npm workspaces 单仓多包）：`server/`（TS 后端 + 爬虫）、`web/`（Vue 前端）、`docs/`。生产环境后端可直接托管 `web` 构建产物（`web/dist`），单进程即可对外提供网站 + API。
 
 ---
 
@@ -199,10 +205,10 @@ score = 收益分(归一化收益率, 权重 0.6)
 
 ---
 
-## 12. 待你确认的关键问题
-1. **数据源**：是否接受以「中国理财网 + 银行官网公开页」为主源？（决定合规与可行性）
-2. **技术栈**：前端用 Vue/React 独立工程，还是后端模板渲染（更快出 MVP）？数据库 SQLite 还是直接上 PostgreSQL？
-3. **银行范围**：先只做平安/招商/建行，还是把网商、微众也纳入（README 提到）？
-4. **部署环境**：你已有云服务器吗？什么系统（建议 Ubuntu）？是否已装 Docker？
-
-确认后我即可进入「阶段 0：数据源可行性验证」，先抓真实样本数据验证可行性，再搭骨架。
+## 12. 落地说明（已确认，进入实现）
+- 已按第 0 段「已确认决策」搭建：`server`（TS/Express/better-sqlite3）+ `web`（Vue3/Vite/Element Plus）。
+- 爬虫采用「适配器接口 + best-effort 真实抓取 + 种子示例数据」并行：
+  - 适配器接口统一产出 `RawProduct`，便于逐家银行补齐真实解析。
+  - **种子数据**为基于公开渠道整理的代表性示例，界面明确标注「示例/参考」，保证平台先端到端可用。
+  - 真实抓取需结合各站点结构（部分动态渲染/反爬）逐步完善，失败有重试与降级。
+- 运行方式见根目录 `README` 与 `AGENTS.md`：`npm install` → `npm run crawl`（入库）→ `npm run dev`（前后端开发）。

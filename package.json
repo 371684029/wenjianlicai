@@ -1,0 +1,26 @@
+{
+  "name": "wenjianlicai",
+  "version": "0.1.0",
+  "private": true,
+  "description": "稳健理财产品推荐平台：聚合平安/招商/建行/网商/微众的理财与存款，按利率高+稳健优先推荐",
+  "workspaces": [
+    "server",
+    "web"
+  ],
+  "scripts": {
+    "dev": "concurrently -n server,web -c green,cyan \"npm:dev:server\" \"npm:dev:web\"",
+    "dev:server": "npm -w server run dev",
+    "dev:web": "npm -w web run dev",
+    "crawl": "npm -w server run crawl",
+    "seed": "npm -w server run seed",
+    "build": "npm -w web run build && npm -w server run build",
+    "start": "npm -w server run start",
+    "lint": "npm -w server run lint && npm -w web run lint"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

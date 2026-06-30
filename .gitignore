@@ -1,0 +1,26 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+server/dist/
+web/dist/
+
+# database & data
+server/data/
+*.db
+*.db-shm
+*.db-wal
+
+# logs
+*.log
+npm-debug.log*
+
+# env
+.env
+.env.local
+
+# editor / os
+.DS_Store
+.vscode/
+.idea/
