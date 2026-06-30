@@ -1,4 +1,4 @@
-import type { RawProduct, Bank, Category, RiskLevel, YieldType } from '../types.js';
+import type { RawProduct, Bank, Category, RiskLevel, YieldType, Status } from '../types.js';
 
 // 说明：以下为「示例/参考」数据（isSample=1），用于平台端到端演示与排序验证。
 // 数据为基于公开渠道整理的代表性结构示例，具体收益/期限请以各银行官方为准。
@@ -67,6 +67,18 @@ const LICAI_SEEDS: LicaiSeed[] = [
 
 const BANKS_ORDER: Bank[] = ['平安', '招商', '建设', '网商', '微众'];
 
+// 示例：用于演示「不可买」状态的产品（按产品 code 标注）
+const SOLD_OUT = new Set(['PA-CD-1095', 'CCB-CD-730']); // 售罄（额度有限）
+const COMING_SOON = new Set(['CMB-CD-1095']); // 待售（即将发售）
+const DELISTED = new Set(['PA-LC-90D']); // 已下架（停售）
+
+function statusOf(code: string): Status {
+  if (SOLD_OUT.has(code)) return '售罄';
+  if (COMING_SOON.has(code)) return '待售';
+  if (DELISTED.has(code)) return '已下架';
+  return '在售';
+}
+
 export function getSampleProducts(): RawProduct[] {
   const startDate = new Date().toISOString().slice(0, 10);
   const out: RawProduct[] = [];
@@ -75,11 +87,12 @@ export function getSampleProducts(): RawProduct[] {
   for (const bank of BANKS_ORDER) {
     for (const term of DEPOSIT_TERMS) {
       const rate = DEPOSIT_RATES[bank][term];
+      const code = `${BANK_CODE[bank]}-DEP-${term}`;
       out.push({
         bank,
         category: '定期存款',
         name: `${bank}银行 整存整取 ${TERM_LABEL[term]}`,
-        code: `${BANK_CODE[bank]}-DEP-${term}`,
+        code,
         riskLevel: '存款保险',
         yieldType: '存款利率',
         yieldMin: rate,
@@ -88,6 +101,9 @@ export function getSampleProducts(): RawProduct[] {
         minAmount: 50,
         startDate,
         principalSecured: 1,
+        status: statusOf(code),
+        reliability: '低',
+        dataDate: startDate,
         sourceName: '示例数据',
         sourceUrl: null,
         isSample: 1,
@@ -99,11 +115,12 @@ export function getSampleProducts(): RawProduct[] {
   for (const bank of BANKS_ORDER) {
     for (const term of CD_TERMS) {
       const rate = CD_RATES[bank][term];
+      const code = `${BANK_CODE[bank]}-CD-${term}`;
       out.push({
         bank,
         category: '大额存单',
         name: `${bank}银行 大额存单 ${TERM_LABEL[term]}`,
-        code: `${BANK_CODE[bank]}-CD-${term}`,
+        code,
         riskLevel: '存款保险',
         yieldType: '存款利率',
         yieldMin: rate,
@@ -112,6 +129,9 @@ export function getSampleProducts(): RawProduct[] {
         minAmount: 200000,
         startDate,
         principalSecured: 1,
+        status: statusOf(code),
+        reliability: '低',
+        dataDate: startDate,
         sourceName: '示例数据',
         sourceUrl: null,
         isSample: 1,
@@ -134,6 +154,9 @@ export function getSampleProducts(): RawProduct[] {
       minAmount: s.minAmount,
       startDate,
       principalSecured: 0,
+      status: statusOf(s.code),
+      reliability: '低',
+      dataDate: startDate,
       sourceName: '示例数据',
       sourceUrl: null,
       isSample: 1,

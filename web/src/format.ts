@@ -30,3 +30,33 @@ const RISK_TAG: Record<string, '' | 'success' | 'warning' | 'danger' | 'info'> =
 export function riskTagType(risk: string): '' | 'success' | 'warning' | 'danger' | 'info' {
   return RISK_TAG[risk] ?? 'info';
 }
+
+const STATUS_TAG: Record<string, '' | 'success' | 'warning' | 'danger' | 'info'> = {
+  在售: 'success',
+  待售: 'warning',
+  售罄: 'info',
+  已下架: 'danger',
+};
+
+export function statusTagType(status: string): '' | 'success' | 'warning' | 'danger' | 'info' {
+  return STATUS_TAG[status] ?? 'info';
+}
+
+export function isAvailable(status: string): boolean {
+  return status === '在售';
+}
+
+const RELIABILITY_TAG: Record<string, '' | 'success' | 'warning' | 'danger' | 'info'> = {
+  高: 'success',
+  中: 'warning',
+  低: 'info',
+};
+
+export function reliabilityTagType(reliability: string): '' | 'success' | 'warning' | 'danger' | 'info' {
+  return RELIABILITY_TAG[reliability] ?? 'info';
+}
+
+export function dataYear(dataDate: string | null): string {
+  if (!dataDate) return '—';
+  return dataDate.slice(0, 4);
+}

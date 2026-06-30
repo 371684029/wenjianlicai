@@ -28,6 +28,7 @@ function parseQuery(q: Record<string, unknown>): QueryParams {
   if (typeof q.riskLevel === 'string' && RISK_LEVELS.includes(q.riskLevel as RiskLevel))
     params.riskLevel = q.riskLevel as RiskLevel;
   if (q.stableOnly === 'true' || q.stableOnly === '1') params.stableOnly = true;
+  if (q.availableOnly === 'true' || q.availableOnly === '1') params.availableOnly = true;
   if (typeof q.minTerm === 'string' && q.minTerm !== '') params.minTerm = Number(q.minTerm);
   if (typeof q.maxTerm === 'string' && q.maxTerm !== '') params.maxTerm = Number(q.maxTerm);
   if (q.sort === 'score' || q.sort === 'yield' || q.sort === 'risk' || q.sort === 'term')

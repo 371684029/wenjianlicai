@@ -1,14 +1,29 @@
 <script setup lang="ts">
 import type { Product } from '../api';
-import { formatYield, formatTerm, formatAmount, riskTagType } from '../format';
+import {
+  formatYield,
+  formatTerm,
+  formatAmount,
+  riskTagType,
+  statusTagType,
+  reliabilityTagType,
+  dataYear,
+  isAvailable,
+} from '../format';
 
 defineProps<{ items: Product[]; loading?: boolean; showScore?: boolean }>();
+
+// 不可买的行整体置灰
+function rowClass({ row }: { row: Product }): string {
+  return isAvailable(row.status) ? '' : 'row-unavailable';
+}
 </script>
 
 <template>
   <el-table
     v-loading="loading"
     :data="items"
+    :row-class-name="rowClass"
     stripe
     style="width: 100%"
   >
@@ -27,6 +42,19 @@ defineProps<{ items: Product[]; loading?: boolean; showScore?: boolean }>();
       label="类型"
       width="100"
     />
+    <el-table-column
+      label="状态"
+      width="90"
+    >
+      <template #default="{ row }">
+        <el-tag
+          :type="statusTagType(row.status)"
+          size="small"
+        >
+          {{ row.status }}
+        </el-tag>
+      </template>
+    </el-table-column>
     <el-table-column
       prop="name"
       label="产品名称"
@@ -91,6 +119,28 @@ defineProps<{ items: Product[]; loading?: boolean; showScore?: boolean }>();
       </template>
     </el-table-column>
     <el-table-column
+      label="数据年份"
+      width="90"
+    >
+      <template #default="{ row }">
+        {{ dataYear(row.dataDate) }}
+      </template>
+    </el-table-column>
+    <el-table-column
+      label="可靠等级"
+      width="100"
+    >
+      <template #default="{ row }">
+        <el-tag
+          :type="reliabilityTagType(row.reliability)"
+          effect="plain"
+          size="small"
+        >
+          {{ row.reliability }}
+        </el-tag>
+      </template>
+    </el-table-column>
+    <el-table-column
       label="来源"
       width="120"
     >
@@ -119,5 +169,12 @@ defineProps<{ items: Product[]; loading?: boolean; showScore?: boolean }>();
 .source {
   font-size: 12px;
   color: #666;
+}
+:deep(.row-unavailable) {
+  color: #c0c4cc;
+  background: #fafafa;
+}
+:deep(.row-unavailable) .yield {
+  color: #c0c4cc;
 }
 </style>

@@ -18,6 +18,22 @@ export type RiskLevel = (typeof RISK_LEVELS)[number];
 /** 收益口径 */
 export type YieldType = '业绩比较基准' | '7日年化' | '存款利率';
 
+/** 在售状态：仅「在售」可当前购买，其余视为不可买 */
+export const STATUSES = ['在售', '售罄', '已下架', '待售'] as const;
+export type Status = (typeof STATUSES)[number];
+
+/**
+ * 数据可靠等级（按来源可信度）：
+ * 高=官方权威源（中国理财网/银行官网）；中=第三方聚合；低=示例/参考数据。
+ */
+export const RELIABILITY_LEVELS = ['高', '中', '低'] as const;
+export type Reliability = (typeof RELIABILITY_LEVELS)[number];
+
+/** 某状态是否可当前购买 */
+export function isAvailable(status: Status): boolean {
+  return status === '在售';
+}
+
 /** 入库后的产品记录 */
 export interface Product {
   id: number;
@@ -33,10 +49,13 @@ export interface Product {
   minAmount: number;
   startDate: string | null;
   principalSecured: 0 | 1;
+  status: Status; // 在售状态
+  reliability: Reliability; // 数据可靠等级
+  dataDate: string | null; // 数据有效/采集日期（YYYY-MM-DD）
   sourceName: string;
   sourceUrl: string | null;
   isSample: 0 | 1; // 是否示例/参考数据
-  updatedAt: string;
+  updatedAt: string; // 入库/最近更新时间（ISO）
 }
 
 /** 爬虫适配器统一产出的原始产品（未入库，无 id/updatedAt） */

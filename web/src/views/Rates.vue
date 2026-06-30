@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { fetchRates, type RateMatrix } from '../api';
-import { formatTerm } from '../format';
+import { fetchRates, type RateMatrix, type RateCell } from '../api';
+import { formatTerm, reliabilityTagType, dataYear, isAvailable } from '../format';
 
 const deposit = ref<RateMatrix | null>(null);
 const cd = ref<RateMatrix | null>(null);
@@ -18,25 +18,34 @@ onMounted(async () => {
   }
 });
 
+function getCell(matrix: RateMatrix | null, bank: string, term: number): RateCell | undefined {
+  return matrix?.rows.find((r) => r.bank === bank)?.rates[term];
+}
+
 function cellText(matrix: RateMatrix | null, bank: string, term: number): string {
-  const row = matrix?.rows.find((r) => r.bank === bank);
-  const cell = row?.rates[term];
+  const cell = getCell(matrix, bank, term);
   if (!cell) return '—';
   const min = cell.yieldMin.toFixed(2);
   const max = cell.yieldMax.toFixed(2);
   return min === max ? `${min}%` : `${min}%~${max}%`;
 }
 
-// 找出每列中的最高利率，用于高亮
+// 找出每列中「在售」产品的最高利率用于高亮（不可买的不参与「最优」）
 function isBest(matrix: RateMatrix | null, bank: string, term: number): boolean {
   if (!matrix) return false;
   const vals = matrix.rows
-    .map((r) => r.rates[term]?.yieldMax)
-    .filter((v): v is number => typeof v === 'number');
+    .map((r) => r.rates[term])
+    .filter((c): c is RateCell => !!c && isAvailable(c.status))
+    .map((c) => c.yieldMax);
   if (vals.length === 0) return false;
   const max = Math.max(...vals);
-  const cell = matrix.rows.find((r) => r.bank === bank)?.rates[term];
-  return !!cell && cell.yieldMax === max;
+  const cell = getCell(matrix, bank, term);
+  return !!cell && isAvailable(cell.status) && cell.yieldMax === max;
+}
+
+function cellUnavailable(matrix: RateMatrix | null, bank: string, term: number): string {
+  const cell = getCell(matrix, bank, term);
+  return cell && !isAvailable(cell.status) ? cell.status : '';
 }
 
 const depositSample = computed(() => deposit.value?.rows.some((r) => r.isSample) ?? false);
@@ -49,7 +58,7 @@ const depositSample = computed(() => deposit.value?.rows.some((r) => r.isSample)
       :closable="false"
       show-icon
       title="存款利率一览（年化）"
-      description="按银行对比 1年 / 2年 / 3年 / 5年 整存整取定期存款，以及大额存单利率；每列最高利率已高亮。"
+      description="按银行对比 1年 / 2年 / 3年 / 5年 整存整取定期存款及大额存单利率；每列「在售」最高利率高亮，不可买（售罄/已下架/待售）划线标记。每行标注数据年份与可靠等级（高=官方源，中=第三方，低=示例）。"
       style="margin-bottom: 16px"
     />
 
@@ -86,9 +95,44 @@ const depositSample = computed(() => deposit.value?.rows.some((r) => r.isSample)
           align="center"
         >
           <template #default="{ row }">
-            <span :class="{ best: isBest(deposit, row.bank, term) }">
+            <span
+              :class="{
+                best: isBest(deposit, row.bank, term),
+                unavailable: !!cellUnavailable(deposit, row.bank, term),
+              }"
+            >
               {{ cellText(deposit, row.bank, term) }}
             </span>
+            <span
+              v-if="cellUnavailable(deposit, row.bank, term)"
+              class="status-mark"
+            >
+              {{ cellUnavailable(deposit, row.bank, term) }}
+            </span>
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="数据年份"
+          width="100"
+          align="center"
+        >
+          <template #default="{ row }">
+            {{ dataYear(row.dataDate) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="可靠等级"
+          width="110"
+          align="center"
+        >
+          <template #default="{ row }">
+            <el-tag
+              :type="reliabilityTagType(row.reliability)"
+              effect="plain"
+              size="small"
+            >
+              {{ row.reliability }}
+            </el-tag>
           </template>
         </el-table-column>
       </el-table>
@@ -117,9 +161,44 @@ const depositSample = computed(() => deposit.value?.rows.some((r) => r.isSample)
           align="center"
         >
           <template #default="{ row }">
-            <span :class="{ best: isBest(cd, row.bank, term) }">
+            <span
+              :class="{
+                best: isBest(cd, row.bank, term),
+                unavailable: !!cellUnavailable(cd, row.bank, term),
+              }"
+            >
               {{ cellText(cd, row.bank, term) }}
             </span>
+            <span
+              v-if="cellUnavailable(cd, row.bank, term)"
+              class="status-mark"
+            >
+              {{ cellUnavailable(cd, row.bank, term) }}
+            </span>
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="数据年份"
+          width="100"
+          align="center"
+        >
+          <template #default="{ row }">
+            {{ dataYear(row.dataDate) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="可靠等级"
+          width="110"
+          align="center"
+        >
+          <template #default="{ row }">
+            <el-tag
+              :type="reliabilityTagType(row.reliability)"
+              effect="plain"
+              size="small"
+            >
+              {{ row.reliability }}
+            </el-tag>
           </template>
         </el-table-column>
       </el-table>
@@ -131,6 +210,15 @@ const depositSample = computed(() => deposit.value?.rows.some((r) => r.isSample)
 .best {
   color: #c0392b;
   font-weight: 700;
+}
+.unavailable {
+  color: #c0c4cc;
+  text-decoration: line-through;
+}
+.status-mark {
+  margin-left: 4px;
+  font-size: 11px;
+  color: #909399;
 }
 .hint {
   margin-left: 8px;

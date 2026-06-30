@@ -1,5 +1,5 @@
 import { db } from './db.js';
-import type { Product, RawProduct, Bank, Category, RiskLevel } from './types.js';
+import { isAvailable, type Product, type RawProduct, type Bank, type Category, type RiskLevel, type Reliability } from './types.js';
 import { scoreProducts, type ScoredProduct } from './scoring.js';
 
 export function dedupeKey(p: RawProduct): string {
@@ -9,17 +9,18 @@ export function dedupeKey(p: RawProduct): string {
 const upsertStmt = db.prepare(`
   INSERT INTO products
     (bank, category, name, code, riskLevel, yieldType, yieldMin, yieldMax,
-     termDays, minAmount, startDate, principalSecured, sourceName, sourceUrl,
-     isSample, updatedAt, dedupeKey)
+     termDays, minAmount, startDate, principalSecured, status, reliability, dataDate,
+     sourceName, sourceUrl, isSample, updatedAt, dedupeKey)
   VALUES
     (@bank, @category, @name, @code, @riskLevel, @yieldType, @yieldMin, @yieldMax,
-     @termDays, @minAmount, @startDate, @principalSecured, @sourceName, @sourceUrl,
-     @isSample, @updatedAt, @dedupeKey)
+     @termDays, @minAmount, @startDate, @principalSecured, @status, @reliability, @dataDate,
+     @sourceName, @sourceUrl, @isSample, @updatedAt, @dedupeKey)
   ON CONFLICT(dedupeKey) DO UPDATE SET
     category=excluded.category, name=excluded.name, riskLevel=excluded.riskLevel,
     yieldType=excluded.yieldType, yieldMin=excluded.yieldMin, yieldMax=excluded.yieldMax,
     termDays=excluded.termDays, minAmount=excluded.minAmount, startDate=excluded.startDate,
-    principalSecured=excluded.principalSecured, sourceName=excluded.sourceName,
+    principalSecured=excluded.principalSecured, status=excluded.status,
+    reliability=excluded.reliability, dataDate=excluded.dataDate, sourceName=excluded.sourceName,
     sourceUrl=excluded.sourceUrl, isSample=excluded.isSample, updatedAt=excluded.updatedAt
 `);
 
@@ -35,11 +36,18 @@ export function upsertProducts(items: RawProduct[]): number {
   return items.length;
 }
 
+/** 删除全部示例数据（isSample=1），避免示例 code 变更后残留旧行 */
+export function deleteSamples(): number {
+  const info = db.prepare('DELETE FROM products WHERE isSample = 1').run();
+  return info.changes;
+}
+
 export interface QueryParams {
   bank?: Bank;
   category?: Category;
   riskLevel?: RiskLevel;
   stableOnly?: boolean; // 仅「稳健」：存款保险 + R1 + R2
+  availableOnly?: boolean; // 仅在售
   minTerm?: number;
   maxTerm?: number;
   sort?: 'score' | 'yield' | 'risk' | 'term';
@@ -68,6 +76,9 @@ export function queryProducts(params: QueryParams): ScoredProduct[] {
     where.push(`riskLevel IN (${STABLE_RISKS.map(() => '?').join(',')})`);
     args.push(...STABLE_RISKS);
   }
+  if (params.availableOnly) {
+    where.push("status = '在售'");
+  }
   if (typeof params.minTerm === 'number') {
     where.push('termDays >= ?');
     args.push(params.minTerm);
@@ -83,20 +94,28 @@ export function queryProducts(params: QueryParams): ScoredProduct[] {
   // 打分需要全集做归一化，这里对筛选结果集打分
   let scored = scoreProducts(rows);
 
+  // 各排序键的「同档」比较函数
+  let cmp: (a: ScoredProduct, b: ScoredProduct) => number;
   switch (params.sort) {
     case 'yield':
-      scored.sort((a, b) => (b.yieldMin + b.yieldMax) / 2 - (a.yieldMin + a.yieldMax) / 2);
+      cmp = (a, b) => (b.yieldMin + b.yieldMax) / 2 - (a.yieldMin + a.yieldMax) / 2;
       break;
     case 'term':
-      scored.sort((a, b) => a.termDays - b.termDays);
+      cmp = (a, b) => a.termDays - b.termDays;
       break;
     case 'risk':
-      scored.sort((a, b) => b.score - a.score); // 稳健优先已含在 score 中
-      break;
     case 'score':
     default:
-      scored.sort((a, b) => b.score - a.score);
+      cmp = (a, b) => b.score - a.score; // 稳健优先已含在 score 中
   }
+
+  // 在售优先：当前能买到的排前面，不可买的统一靠后；同组内按所选排序键
+  scored.sort((a, b) => {
+    const av = isAvailable(a.status) ? 0 : 1;
+    const bv = isAvailable(b.status) ? 0 : 1;
+    if (av !== bv) return av - bv;
+    return cmp(a, b);
+  });
 
   if (params.limit && params.limit > 0) scored = scored.slice(0, params.limit);
   return scored;
@@ -120,12 +139,15 @@ export interface MetaInfo {
 export interface RateCell {
   yieldMin: number;
   yieldMax: number;
+  status: string; // 在售状态
 }
 
 export interface RateRow {
   bank: Bank;
   rates: Record<number, RateCell>; // key 为期限天数
   isSample: 0 | 1;
+  reliability: Reliability; // 数据可靠等级
+  dataDate: string | null; // 数据日期
   sourceName: string;
 }
 
@@ -148,10 +170,17 @@ export function getRateMatrix(category: Category): RateMatrix {
     termSet.add(p.termDays);
     let row = byBank.get(p.bank);
     if (!row) {
-      row = { bank: p.bank, rates: {}, isSample: p.isSample, sourceName: p.sourceName };
+      row = {
+        bank: p.bank,
+        rates: {},
+        isSample: p.isSample,
+        reliability: p.reliability,
+        dataDate: p.dataDate,
+        sourceName: p.sourceName,
+      };
       byBank.set(p.bank, row);
     }
-    row.rates[p.termDays] = { yieldMin: p.yieldMin, yieldMax: p.yieldMax };
+    row.rates[p.termDays] = { yieldMin: p.yieldMin, yieldMax: p.yieldMax, status: p.status };
   }
 
   const last = db

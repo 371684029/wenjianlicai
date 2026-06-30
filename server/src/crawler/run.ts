@@ -1,5 +1,5 @@
 import { initSchema } from '../db.js';
-import { upsertProducts } from '../repo.js';
+import { upsertProducts, deleteSamples } from '../repo.js';
 import type { SourceAdapter } from './adapter.js';
 import { chinawealthAdapter } from './adapters/chinawealth.js';
 import { getSampleProducts } from './sampleData.js';
@@ -30,6 +30,7 @@ async function main(): Promise<void> {
   }
 
   if (realCount === 0) {
+    deleteSamples(); // 清除旧示例，避免残留
     const samples = getSampleProducts();
     const n = upsertProducts(samples);
     console.log(`[crawler] 真实数据为空，回退写入示例数据 ${n} 条（界面标注「示例」）`);

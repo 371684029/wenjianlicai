@@ -16,6 +16,9 @@ export interface Product {
   minAmount: number;
   startDate: string | null;
   principalSecured: 0 | 1;
+  status: string;
+  reliability: string;
+  dataDate: string | null;
   sourceName: string;
   sourceUrl: string | null;
   isSample: 0 | 1;
@@ -37,6 +40,7 @@ export interface ProductQuery {
   category?: string;
   riskLevel?: string;
   stableOnly?: boolean;
+  availableOnly?: boolean;
   sort?: 'score' | 'yield' | 'risk' | 'term';
   limit?: number;
 }
@@ -59,12 +63,15 @@ export async function fetchRecommend(limit = 10): Promise<Product[]> {
 export interface RateCell {
   yieldMin: number;
   yieldMax: number;
+  status: string;
 }
 
 export interface RateRow {
   bank: string;
   rates: Record<number, RateCell>;
   isSample: 0 | 1;
+  reliability: string;
+  dataDate: string | null;
   sourceName: string;
 }
 

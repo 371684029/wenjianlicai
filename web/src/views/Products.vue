@@ -12,6 +12,7 @@ const filters = reactive<ProductQuery>({
   category: undefined,
   riskLevel: undefined,
   stableOnly: true,
+  availableOnly: false,
   sort: 'score',
 });
 
@@ -29,6 +30,7 @@ function reset() {
   filters.category = undefined;
   filters.riskLevel = undefined;
   filters.stableOnly = true;
+  filters.availableOnly = false;
   filters.sort = 'score';
   load();
 }
@@ -112,6 +114,9 @@ onMounted(async () => {
         </el-form-item>
         <el-form-item label="仅稳健">
           <el-switch v-model="filters.stableOnly" />
+        </el-form-item>
+        <el-form-item label="仅在售">
+          <el-switch v-model="filters.availableOnly" />
         </el-form-item>
         <el-form-item>
           <el-button
