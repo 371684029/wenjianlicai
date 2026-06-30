@@ -117,6 +117,54 @@ export interface MetaInfo {
   lastUpdated: string | null;
 }
 
+export interface RateCell {
+  yieldMin: number;
+  yieldMax: number;
+}
+
+export interface RateRow {
+  bank: Bank;
+  rates: Record<number, RateCell>; // key 为期限天数
+  isSample: 0 | 1;
+  sourceName: string;
+}
+
+export interface RateMatrix {
+  terms: number[]; // 列：期限（天）升序
+  rows: RateRow[]; // 行：按银行
+  updatedAt: string | null;
+}
+
+/** 按类型（定期存款 / 大额存单）汇总「银行 × 期限」利率矩阵 */
+export function getRateMatrix(category: Category): RateMatrix {
+  const rows = db
+    .prepare('SELECT * FROM products WHERE category = ? ORDER BY bank, termDays')
+    .all(category) as Product[];
+
+  const termSet = new Set<number>();
+  const byBank = new Map<Bank, RateRow>();
+
+  for (const p of rows) {
+    termSet.add(p.termDays);
+    let row = byBank.get(p.bank);
+    if (!row) {
+      row = { bank: p.bank, rates: {}, isSample: p.isSample, sourceName: p.sourceName };
+      byBank.set(p.bank, row);
+    }
+    row.rates[p.termDays] = { yieldMin: p.yieldMin, yieldMax: p.yieldMax };
+  }
+
+  const last = db
+    .prepare('SELECT MAX(updatedAt) m FROM products WHERE category = ?')
+    .get(category) as { m: string | null };
+
+  return {
+    terms: [...termSet].sort((a, b) => a - b),
+    rows: [...byBank.values()],
+    updatedAt: last.m,
+  };
+}
+
 export function getMeta(): MetaInfo {
   const total = (db.prepare('SELECT COUNT(*) c FROM products').get() as { c: number }).c;
   const sampleCount = (

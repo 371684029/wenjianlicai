@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { queryProducts, getProductById, getMeta, type QueryParams } from './repo.js';
+import { queryProducts, getProductById, getMeta, getRateMatrix, type QueryParams } from './repo.js';
 import { BANKS, CATEGORIES, RISK_LEVELS, type Bank, type Category, type RiskLevel } from './types.js';
 
 export const api = Router();
@@ -10,6 +10,14 @@ api.get('/health', (_req, res) => {
 
 api.get('/meta', (_req, res) => {
   res.json(getMeta());
+});
+
+// 利率矩阵：定期存款（1/2/3/5年）与大额存单
+api.get('/rates', (_req, res) => {
+  res.json({
+    deposit: getRateMatrix('定期存款'),
+    cd: getRateMatrix('大额存单'),
+  });
 });
 
 function parseQuery(q: Record<string, unknown>): QueryParams {

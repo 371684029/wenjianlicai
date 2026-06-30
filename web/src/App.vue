@@ -18,6 +18,9 @@ const route = useRoute();
         <el-menu-item index="/">
           推荐榜单
         </el-menu-item>
+        <el-menu-item index="/rates">
+          存款利率
+        </el-menu-item>
         <el-menu-item index="/products">
           全部产品
         </el-menu-item>

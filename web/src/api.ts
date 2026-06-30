@@ -55,3 +55,31 @@ export async function fetchRecommend(limit = 10): Promise<Product[]> {
   const { data } = await http.get<{ items: Product[] }>('/recommend', { params: { limit } });
   return data.items;
 }
+
+export interface RateCell {
+  yieldMin: number;
+  yieldMax: number;
+}
+
+export interface RateRow {
+  bank: string;
+  rates: Record<number, RateCell>;
+  isSample: 0 | 1;
+  sourceName: string;
+}
+
+export interface RateMatrix {
+  terms: number[];
+  rows: RateRow[];
+  updatedAt: string | null;
+}
+
+export interface RatesResponse {
+  deposit: RateMatrix;
+  cd: RateMatrix;
+}
+
+export async function fetchRates(): Promise<RatesResponse> {
+  const { data } = await http.get<RatesResponse>('/rates');
+  return data;
+}
