@@ -144,10 +144,11 @@ export const chinawealthPlaywrightAdapter: SourceAdapter = {
       const risk = mapRisk(it.prodRiskLevelName || '');
       if (!risk) continue;
       const yieldPair = parseBenchmark(it.benchmark);
-      if (!yieldPair) continue; // 没业绩基准的就跳过
       const termDays = parseTermDays(it.prodTermName || '', it.prodSDate, it.prodEDate);
       const category = termDays === 0 ? '活期理财' : '定期理财';
       const yieldType = '业绩比较基准';
+      // 无 benchmark 时仍入库（填覆盖率矩阵），收益记 0、可靠降为中
+      const hasBenchmark = yieldPair !== null;
 
       out.push({
         bank,
@@ -156,14 +157,14 @@ export const chinawealthPlaywrightAdapter: SourceAdapter = {
         code: (it.prodRegCode || '').trim() || null,
         riskLevel: risk,
         yieldType,
-        yieldMin: yieldPair.yieldMin,
-        yieldMax: yieldPair.yieldMax,
+        yieldMin: hasBenchmark ? yieldPair.yieldMin : 0,
+        yieldMax: hasBenchmark ? yieldPair.yieldMax : 0,
         termDays,
         minAmount: bank === '网商' || bank === '微众' ? 1 : 10000,
         startDate: it.prodSDate || null,
         principalSecured: 0,
         status: it.prodStatus === '02' ? '在售' : '在售',
-        reliability: '高',
+        reliability: hasBenchmark ? '高' : '中',
         dataDate: today,
         sourceName: '中国理财网',
         sourceUrl: 'https://www.chinawealth.com.cn/lcweb/management/proScreen',
