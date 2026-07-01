@@ -92,7 +92,11 @@ function parseBenchmark(b: any): { yieldMin: number; yieldMax: number } | null {
   return null;
 }
 
-async function tryCapture(chinawealthUrl = 'https://www.chinawealth.com.cn/lcweb/management/proScreen'): Promise<any | null> {
+/**
+ * 打开中国理财网页面，逐页点击「下一页」抓取多页产品数据。
+ * 每次 API 返回 20 条，最多翻 5 页（共 100 条），避免触发 captcha。
+ */
+async function tryCaptureMulti(pages = 5): Promise<any[]> {
   const browser = await chromium.launch({ headless: true });
   try {
     const ctx = await browser.newContext({
@@ -100,20 +104,56 @@ async function tryCapture(chinawealthUrl = 'https://www.chinawealth.com.cn/lcweb
     });
     const page = await ctx.newPage();
 
-    let captured: any = null;
+    const allResponses: any[] = [];
+    let pendingResponse: any = null;
+
     page.on('response', async (resp) => {
       if (resp.url().includes('/lcw-fe-service/prod/search')) {
         try {
-          captured = JSON.parse(await resp.text());
+          pendingResponse = JSON.parse(await resp.text());
         } catch {
           /* 忽略解析失败 */
         }
       }
     });
 
-    await page.goto(chinawealthUrl, { waitUntil: 'networkidle', timeout: 30000 });
-    await page.waitForTimeout(5000);
-    return captured;
+    await page.goto('https://www.chinawealth.com.cn/lcweb/management/proScreen', {
+      waitUntil: 'networkidle',
+      timeout: 60000,
+    });
+    await page.waitForTimeout(6000);
+
+    if (pendingResponse) {
+      allResponses.push(pendingResponse);
+      pendingResponse = null;
+    }
+
+    // 逐页点击「下一页」
+    for (let i = 1; i < pages; i++) {
+      const clicked = await page.evaluate(() => {
+        // 找未被禁用的「下一页」按钮（el-pagination 的 btn-next）
+        const btns = document.querySelectorAll('button.btn-next:not([disabled])');
+        for (const btn of btns) {
+          if ((btn.textContent || '').trim() === '下一页' || btn.className.includes('btn-next')) {
+            (btn as HTMLElement).click();
+            return true;
+          }
+        }
+        return false;
+      });
+
+      if (!clicked) break;
+
+      // 等待 API 响应
+      await page.waitForTimeout(4000);
+      if (pendingResponse) {
+        allResponses.push(pendingResponse);
+        pendingResponse = null;
+      }
+    }
+
+    console.log(`[crawler] 中国理财网 翻页完成：${allResponses.length} 页`);
+    return allResponses;
   } finally {
     await browser.close();
   }
@@ -122,23 +162,30 @@ async function tryCapture(chinawealthUrl = 'https://www.chinawealth.com.cn/lcweb
 export const chinawealthPlaywrightAdapter: SourceAdapter = {
   name: '中国理财网(Playwright)',
   async fetch(): Promise<RawProduct[]> {
-    let searchResult: any;
+    let allResponses: any[];
     try {
-      searchResult = await tryCapture();
+      allResponses = await tryCaptureMulti(5);
     } catch (err) {
       console.warn(`[crawler] 中国理财网(Playwright) 启动失败：${(err as Error).message}`);
       return [];
     }
-    if (!searchResult || !searchResult.data || !Array.isArray(searchResult.data.data)) {
+    if (!allResponses || allResponses.length === 0) {
       console.log('[crawler] 中国理财网(Playwright) 未拿到 search JSON（可能被 captcha 限流），返回空');
       return [];
     }
 
-    const items = searchResult.data.data as any[];
+    // 合并所有页面的产品
+    const allItems: any[] = [];
+    for (const resp of allResponses) {
+      if (resp?.data && Array.isArray(resp.data.data)) {
+        allItems.push(...resp.data.data);
+      }
+    }
+
     const today = new Date().toISOString().slice(0, 10);
     const out: RawProduct[] = [];
 
-    for (const it of items) {
+    for (const it of allItems) {
       const bank = mapBank(it.orgName || '');
       if (!bank) continue;
       const risk = mapRisk(it.prodRiskLevelName || '');
@@ -172,7 +219,7 @@ export const chinawealthPlaywrightAdapter: SourceAdapter = {
       });
     }
 
-    console.log(`[crawler] 中国理财网(Playwright) 解析 ${items.length} 条,五家理财匹配 ${out.length} 条`);
+    console.log(`[crawler] 中国理财网(Playwright) 共 ${allItems.length} 条,五家理财匹配 ${out.length} 条`);
     return out;
   },
 };

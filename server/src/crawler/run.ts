@@ -5,10 +5,15 @@ import { chinawealthPlaywrightAdapter } from './adapters/chinawealthPlaywright.j
 import { cmbAdapter } from './adapters/cmb.js';
 import { ccbAdapter } from './adapters/ccb.js';
 import { ccbWealthAdapter } from './adapters/ccb-wealth.js';
+import { ccbCDManualAdapter } from './adapters/ccb-cd-manual.js';
 import { cmbCDAdapter } from './adapters/cmb-cd-playwright.js';
 import { pinganAdapter } from './adapters/pingan.js';
+import { pinganCDManualAdapter } from './adapters/pingan-cd-manual.js';
 import { mybankAdapter } from './adapters/mybank.js';
+import { mybankCDManualAdapter } from './adapters/mybank-cd-manual.js';
 import { webankAdapter } from './adapters/webank.js';
+import { webankCDManualAdapter } from './adapters/webank-cd-manual.js';
+import { extraWealthManualAdapter } from './adapters/extra-wealth-manual.js';
 import { sanitizeProducts } from './normalize.js';
 import type { RawProduct } from '../types.js';
 
@@ -20,10 +25,15 @@ const ADAPTERS: SourceAdapter[] = [
   cmbAdapter,
   ccbAdapter,
   ccbWealthAdapter,
+  ccbCDManualAdapter,
   cmbCDAdapter,
   pinganAdapter,
+  pinganCDManualAdapter,
   mybankAdapter,
+  mybankCDManualAdapter,
   webankAdapter,
+  webankCDManualAdapter,
+  extraWealthManualAdapter,
   chinawealthPlaywrightAdapter,
 ];
 
