@@ -79,10 +79,11 @@ function refresh() {
       class="alert"
     >
       <div class="alert-text">
-        下列 ⚠️ 缺失格没有自动抓到的真实数据。截一张银行 App/官网的利率或产品图，
-        到 <router-link to="/manual-import" class="link">手工补录</router-link> 页
-        一行一条粘贴即可补上(支持批量,支持区间利率)。
-        其它格按列出的来源/日期判断可信度。
+        下列 ⚠️ 缺失格没有自动抓到的真实数据。原因是 <strong>中国理财网爬虫被 captcha 拦截</strong>，
+        冷却 ~24h 后重新 <code>npm run crawl</code> 即自动补全所有缺失格，无需截图。
+        极个别官网长期不更新的产品（如微众定期存款）可到
+        <router-link to="/manual-import" class="link">手工补录</router-link> 页单独补。
+        已有数据的格按列出的来源/日期判断可信度。
       </div>
     </el-alert>
 
